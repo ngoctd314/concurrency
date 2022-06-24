@@ -12,3 +12,16 @@ So what makes a stage of a pipeline suited for utilizing this pattern? You might
 - It takes to long time to run.
 
 The property of order-independence is important because you have no guarantee in what order concurrent copies of your stage will run, nor in what order they will return.
+
+This is a relatively simple example, so we only have two stages: random number generation and prime serving.
+
+The process of fanning out a stage in a pipeline is extraordinarily easy. All we have to do is start multiple versions of that stage
+
+```go
+numFinder := runtime.NumCPU()
+finders := make([]<- chan int, numFinders)
+
+for i := 0 ; i < numFinders; ++ {
+    finders[i] = primeFinder(done, randIntStream)
+}
+```

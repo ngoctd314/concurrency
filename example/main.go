@@ -1,6 +1,10 @@
 package example
 
-import "fmt"
+import (
+	"fmt"
+	"runtime"
+	"time"
+)
 
 // Exec ...
 func Exec() {
@@ -8,21 +12,24 @@ func Exec() {
 	// execFoo()
 	// execUpdatePosition()
 	// execFibonaciGenerator()
-	multily := func(values []int, multiplier int) []int {
-		multipliedValues := make([]int, len(values))
-		for i, v := range values {
-			multipliedValues[i] = v * multiplier
-		}
+	fn := func(t int) <-chan int {
+		outbound := make(chan int)
+		go func() {
+			time.Sleep(time.Second * time.Duration(t))
+			outbound <- t
+			close(outbound)
+		}()
 
-		return multipliedValues
+		return outbound
 	}
 
-	add := func(values []int, additive int) []int {
-		addedValues := make([]int, len(values))
-		for i, v := range values {
-			addedValues[i] = v + additive
-		}
-		return addedValues
+	ch := make([]<-chan int, 0)
+	for i := 0; i < runtime.NumCPU(); i++ {
+		ch = append(ch, fn(i))
 	}
-	fmt.Println(multily(add([]int{1, 1, 1}, 1), 2))
+	for _, v := range ch {
+		for k := range v {
+			fmt.Println(k)
+		}
+	}
 }
