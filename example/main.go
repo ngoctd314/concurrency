@@ -1,38 +1,65 @@
 package example
 
-import (
-	"fmt"
-	"runtime"
-	"sync"
-	"time"
-)
-
 // Exec ...
 func Exec() {
 	// execBoring()
 	// execFoo()
 	// execUpdatePosition()
 	// execFibonaciGenerator()
-	fn := func(t int) <-chan int {
-		outbound := make(chan int)
+	orDone := func(done, c <-chan any) <-chan any {
+		valStream := make(chan any)
 		go func() {
-			time.Sleep(time.Second * time.Duration(t))
-			outbound <- t
-			close(outbound)
+			defer close(valStream)
+			for {
+				select {
+				case <-done:
+					return
+				case v, ok := <-c:
+					if !ok {
+						return
+					}
+					select {
+					case valStream <- v:
+					case <-done:
+					}
+				case <-done:
+				}
+			}
 		}()
 
-		return outbound
+		return valStream
 	}
 
-	ch := make([]<-chan int, 0)
-	for i := 0; i < runtime.NumCPU(); i++ {
-		ch = append(ch, fn(i))
+	tee := func(done <-chan interface{}, in <-chan interface{}) (<-chan any, <-chan any) {
+		out1 := make(chan any)
+		out2 := make(chan any)
+		go func() {
+			defer close(out1)
+			defer close(out2)
+			for val := range orDone(done, in) {
+				// we will want to use local versions of out1 and out2, so we shadow these variables
+				var out1, out2 = out1, out2
+				// we're going to use one select statement so that writes to out1 and out2
+				// don't block each other. To ensure both are written to, we'll perform two iterations
+				// of the select statement: one for each outbound channel
+				for i := 0; i < 2; i++ {
+					select {
+					case <-done:
+					case out1 <- val:
+						// once we've written to a channel, we set its shadowed copy to nil
+						// so that further writes will block and the other channel may continue
+						out1 = nil
+					case out2 <- val:
+						// once we've written to a channel, we set its shadowned copy to nil
+						// so the further writes will block and the other channel may continue
+						out2 = nil
+					}
+				}
+			}
+		}()
+		return out1, out2
 	}
-	for _, v := range ch {
-		for k := range v {
-			fmt.Println(k)
-		}
-	}
+<<<<<<< HEAD
 
 	fanIn := func(done <-chan any, channels ...<-chan any) <-chan any {
 		var wg sync.WaitGroup
@@ -63,4 +90,7 @@ func Exec() {
 	}
 
 	_ = fanIn
+=======
+	_ = tee
+>>>>>>> 4b47102a7e0a96a587e9350beba0281b22b6c7e4
 }

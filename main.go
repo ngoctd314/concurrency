@@ -1,7 +1,8 @@
 package main
 
-import "github.com/ngoctd314/concurrency/example"
-
 func main() {
-	example.Exec()
+	// example.Exec()
+	done := make(chan interface{})
+	defer close(done)
+
 }
