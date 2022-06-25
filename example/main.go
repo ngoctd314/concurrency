@@ -3,6 +3,7 @@ package example
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -32,4 +33,34 @@ func Exec() {
 			fmt.Println(k)
 		}
 	}
+
+	fanIn := func(done <-chan any, channels ...<-chan any) <-chan any {
+		var wg sync.WaitGroup
+		multiplexedStream := make(chan any)
+
+		multiplex := func(c <-chan any) {
+			defer wg.Done()
+			for i := range c {
+				select {
+				case <-done:
+					return
+				case multiplexedStream <- i:
+				}
+			}
+		}
+
+		wg.Add(len(channels))
+		for _, c := range channels {
+			go multiplex(c)
+		}
+
+		go func() {
+			wg.Wait()
+			close(multiplexedStream)
+		}()
+
+		return multiplexedStream
+	}
+
+	_ = fanIn
 }

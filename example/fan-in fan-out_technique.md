@@ -24,4 +24,50 @@ finders := make([]<- chan int, numFinders)
 for i := 0 ; i < numFinders; ++ {
     finders[i] = primeFinder(done, randIntStream)
 }
+
+ch := make([]<-chan int, 0)
+for i := 0; i < runtime.NumCPU(); i++ {
+    ch = append(ch, fn(i))
+}
+for _, v := range ch {
+    for k := range v {
+        fmt.Println(k)
+    }
+}
+```
+
+We still have a problem though: new that we have four goroutines, we also have four channels, but our range over primes is only expecting one channel. This brings us to the fan-in portion of the pattern.
+
+As we discussed earlier, fanning in means multiplexing or joining together multiple streams of data into a single stream.
+
+```go
+fanIn := func(done <- chan any, channels ...<- chan any) <-chan any{
+    var (
+        wg = sync.WaitGroup{}
+        multiplexedStream = make(chan any)
+    )
+
+    multiplex := func(c <- chan any) {
+        defer wg.Done()
+        for i := range c {
+            select {
+                case <- done:
+                    return
+                case multiplexedStream <- i:
+            }
+        }
+    }
+
+    for _, c := range channels {
+        wg.Add(1)
+        go multiplex(c)
+    }
+
+    go func(){
+        wg.Wait()
+        close(multiplexedStream)
+    }()
+
+    return multiplexedStream
+}
 ```
