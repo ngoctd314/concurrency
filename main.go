@@ -1,79 +1,141 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 )
 
-func gen(a ...int) <-chan int {
-	out := make(chan int)
+func producer(ctx context.Context, words []string) (<-chan string, error) {
+	outbound := make(chan string)
 	go func() {
-		for _, v := range a {
-			out <- v
-		}
-		close(out)
-	}()
+		defer close(outbound)
 
-	return out
-}
-
-func sq(ch <-chan int) <-chan int {
-	out := make(chan int)
-	go func() {
-		for v := range ch {
-			out <- v * v
-		}
-		close(out)
-	}()
-
-	return out
-}
-
-func merge(done chan struct{}, ch ...<-chan int) <-chan int {
-	out := make(chan int)
-
-	wg := sync.WaitGroup{}
-	output := func(ch <-chan int) {
-		for v := range ch {
-			out <- v
-		}
-		wg.Done()
-	}
-
-	wg.Add(len(ch))
-	for _, v := range ch {
-		go output(v)
-	}
-
-	go func() {
-		wg.Wait()
-		close(out)
-	}()
-	go func() {
-		for {
+		for _, s := range words {
 			select {
-			case <-done:
+			case <-ctx.Done():
+				fmt.Println("DONE")
 				return
-			default:
-				fmt.Println("RUN")
-				time.Sleep(time.Second)
+			case outbound <- s:
+				// default:
+				// 	outbound <- s
 			}
 		}
 	}()
 
-	return out
+	return outbound, nil
+}
+
+func transformToLower(ctx context.Context, values <-chan string) (<-chan string, error) {
+	outbound := make(chan string)
+
+	go func() {
+		defer close(outbound)
+
+		for s := range values {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				outbound <- strings.ToLower(s)
+			}
+		}
+	}()
+
+	return outbound, nil
+}
+
+func transformToTitle(ctx context.Context, values <-chan string) (<-chan string, error) {
+	outbound := make(chan string)
+
+	go func() {
+		for s := range values {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				outbound <- strings.ToTitle(s)
+			}
+		}
+	}()
+
+	return outbound, nil
+}
+
+func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
+	var wg sync.WaitGroup
+	outbound := make(chan string)
+
+	output := func(c <-chan string) {
+		defer wg.Done()
+		for n := range c {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				outbound <- n
+			}
+		}
+	}
+
+	wg.Add(len(cs))
+	for _, c := range cs {
+		go output(c)
+	}
+
+	go func() {
+		wg.Wait()
+		close(outbound)
+	}()
+
+	return outbound
+}
+
+func sink(ctx context.Context, values <-chan string) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case val, ok := <-values:
+			if ok {
+				fmt.Printf("sink: %s", val)
+			} else {
+				fmt.Println("Done")
+				return
+			}
+		}
+	}
 }
 
 func main() {
-	gen := gen(2, 3)
-	sq1 := sq(gen)
-	sq2 := sq(gen)
+	source := []string{"FOO", "BAR", "BAX"}
 
-	done := make(chan struct{})
-	merge := merge(done, sq1, sq2)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		time.Sleep(time.Second * 2)
+		cancel()
+	}()
 
-	fmt.Println(<-merge, <-merge)
-	done <- struct{}{}
-	time.Sleep(time.Minute)
+	producer, err := producer(ctx, source)
+	if err != nil {
+		log.Fatal(err)
+	}
+	time.Sleep(time.Second * 10)
+	for v := range producer {
+		fmt.Println(v)
+	}
+
+	// stage1Channels := []<-chan string{}
+	// for i := 0; i < runtime.NumCPU(); i++ {
+	// 	lowerCaseChannel, err := transformToLower(ctx, producer)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	stage1Channels = append(stage1Channels, lowerCaseChannel)
+	// }
+
 }
