@@ -59,38 +59,5 @@ func Exec() {
 		}()
 		return out1, out2
 	}
-<<<<<<< HEAD
-
-	fanIn := func(done <-chan any, channels ...<-chan any) <-chan any {
-		var wg sync.WaitGroup
-		multiplexedStream := make(chan any)
-
-		multiplex := func(c <-chan any) {
-			defer wg.Done()
-			for i := range c {
-				select {
-				case <-done:
-					return
-				case multiplexedStream <- i:
-				}
-			}
-		}
-
-		wg.Add(len(channels))
-		for _, c := range channels {
-			go multiplex(c)
-		}
-
-		go func() {
-			wg.Wait()
-			close(multiplexedStream)
-		}()
-
-		return multiplexedStream
-	}
-
-	_ = fanIn
-=======
 	_ = tee
->>>>>>> 4b47102a7e0a96a587e9350beba0281b22b6c7e4
 }
