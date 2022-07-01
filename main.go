@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
-	"time"
 )
 
 func producer(ctx context.Context, words []string) (<-chan string, error) {
@@ -110,24 +108,34 @@ func sink(ctx context.Context, values <-chan string) {
 	}
 }
 
+type group struct {
+	member []string
+}
+
+func (g *group) getAllMember() []string {
+	var result []string
+	result = append(result, g.member...)
+	return result
+}
+
 func main() {
-	source := []string{"FOO", "BAR", "BAX"}
+	// source := []string{"FOO", "BAR", "BAX"}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		time.Sleep(time.Second * 2)
-		cancel()
-	}()
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
+	// go func() {
+	// 	time.Sleep(time.Second * 2)
+	// 	cancel()
+	// }()
 
-	producer, err := producer(ctx, source)
-	if err != nil {
-		log.Fatal(err)
-	}
-	time.Sleep(time.Second * 10)
-	for v := range producer {
-		fmt.Println(v)
-	}
+	// producer, err := producer(ctx, source)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// time.Sleep(time.Second * 10)
+	// for v := range producer {
+	// 	fmt.Println(v)
+	// }
 
 	// stage1Channels := []<-chan string{}
 	// for i := 0; i < runtime.NumCPU(); i++ {
@@ -137,5 +145,13 @@ func main() {
 	// 	}
 	// 	stage1Channels = append(stage1Channels, lowerCaseChannel)
 	// }
+	group := &group{
+		member: []string{"Tran", "Duc", "Ngoc"},
+	}
 
+	mem1 := group.getAllMember()
+	mem2 := group.getAllMember()
+
+	mem1[0] = "TRAN"
+	fmt.Println(mem1, mem2)
 }
