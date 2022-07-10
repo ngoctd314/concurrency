@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -110,8 +109,8 @@ func sink(ctx context.Context, values <-chan string) {
 	}
 }
 
-func main() {
-	source := []string{"FOO", "BAR", "BAX"}
+func mainn() {
+	// source := []string{"FOO", "BAR", "BAX"}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -119,15 +118,21 @@ func main() {
 		time.Sleep(time.Second * 2)
 		cancel()
 	}()
+	select {
+	case <-ctx.Done():
+		fmt.Println("RUNN")
+	}
 
-	producer, err := producer(ctx, source)
-	if err != nil {
-		log.Fatal(err)
-	}
 	time.Sleep(time.Second * 10)
-	for v := range producer {
-		fmt.Println(v)
-	}
+
+	// producer, err := producer(ctx, source)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// time.Sleep(time.Second * 10)
+	// for v := range producer {
+	// 	fmt.Println(v)
+	// }
 
 	// stage1Channels := []<-chan string{}
 	// for i := 0; i < runtime.NumCPU(); i++ {
