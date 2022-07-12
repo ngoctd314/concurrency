@@ -71,3 +71,16 @@ Really.
 It's routine to create thousands of goroutines in one program
 Stack start small, but grow and shrink as required.
 Goroutines aren't free, but they've very cheap.
+
+## Launching daemons
+
+Use a closure to wrap a background operation.
+This copies items from the input channel to the output channel:
+
+```go
+go func() {
+    for val := range input {
+        output <- val
+    }
+}()
+```

@@ -1,27 +1,14 @@
 package main
 
-import (
-	"fmt"
-	"time"
-)
+type work struct {
+	x, y, z int
+}
+
+func worker(in <-chan *work, out chan<- *work) {
+	for w := range in {
+		w.z = w.x * w.y
+	}
+}
 
 func main() {
-	dynamite := make(chan string)
-
-	go func() {
-		time.Sleep(time.Second * 3)
-		dynamite <- "Dynamite Diffused!"
-	}()
-
-	for {
-		fmt.Println("RUN")
-		select {
-		case s := <-dynamite:
-			fmt.Println(s)
-			return
-		case <-time.After(time.Second * 2):
-			fmt.Println("Time expired")
-			return
-		}
-	}
 }
